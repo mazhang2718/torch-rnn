@@ -41,7 +41,11 @@ luarocks make hdf5-0-0.rockspec
 
 That worked.
 
-    
+## Get GitHub working
+
+- made a new ssh key on the EC2 using this page: https://help.github.com/articles/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent/
+- added it as an authorized key in my settings in GitHub
+
 
 ## Getting conda environment working
 
@@ -57,6 +61,34 @@ That worked.
 ## Prepped the data
 
 - Downloaded a 2013 NYC dog dataset from [this WNYC fusion table](https://fusiontables.google.com/data?docid=1pKcxc8kzJbBVzLu_kgzoAMzqYhZyUhtScXjB0BQ#rows:id=1) which has 81,542 rows and 13,803 unique dog names. I didn't do anything to pull out just the unique names.
-- used csvkit to grab just the first column of the dog dataset
-    `csvcut -c 1 > dog_names.txt`
-- 
+- used LibreOffice to take just the first column (the dog names) and put it into dogs.txt
+- Now starting to follow [steps](https://github.com/jkeefe/torch-rnn#usage) outlined in the README.
+
+```
+python scripts/preprocess.py \
+  --input_txt data/dogs.txt \
+  --output_h5 data/dogs.h5 \
+  --output_json data/dogs.json
+```
+
+Woot! Got this:
+
+```
+Total vocabulary size: 72
+Total tokens in file: 507828
+  Training size: 406264
+  Val size: 50782
+  Test size: 50782
+Using dtype  <type 'numpy.uint8'>
+```
+
+## Training the model
+
+Following along in the example instructions:
+
+`th train.lua -input_h5 data/dogs.h5 -input_json data/dogs.json`
+
+## Taking a sample!
+
+`th sample.lua -checkpoint cv/checkpoint_8000.t7 -length 3000 > data/dogs_sample.txt`
+
