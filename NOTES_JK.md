@@ -115,8 +115,5 @@ I copy-pasted the URL I got into a browser to do the work.
 
 The notebook is [here](https://github.com/jkeefe/torch-rnn/blob/dognames/compare_sample_to_original.ipynb).
 
- 
 
-
-So put together a little jupyter notebook
 
