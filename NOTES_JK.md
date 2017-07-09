@@ -108,6 +108,7 @@ To get a list of names made by the computer but not in the original data, I deci
 
 ```
 conda install jupyter
+pip install agate
 jupyter notebook
 ```
 
