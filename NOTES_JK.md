@@ -2,18 +2,20 @@
 
 ## Spun up a "deep learning" AMI on Amazon EC2
 
-- Used the "marketplace" and searched for "deep learning"
+- Went to AWS Dashboard
+- Clicked "Launch Instance"
+- Used the "AWS marketplace" and searched for "deep learning"
+- Picked the "Deep Learning AMI Ubuntu Version"
 - Spun it up into a `p2.xlarge` instance, which is about 90 cents an hour
 - Tried to do as a spot instance, but couldn't because it was grayed-out. Sent Amazon a ticket asking about this
 - ssh'd into the server
 
-
 ## Getting Torch running
 
 - the `th` command didn't work out of the gate ... tho the AMI comes with Torch. 🤔
-- went into `~/src/torch` and ran the `install-deps` as described in the Torch docs, but all dependencies were already installed.
+- went into `~/src/torch` and ran the `install-deps` as described in the [Torch install docs](http://torch.ch/docs/getting-started.html#_), but all dependencies were already installed.
 - so in the same directory did `./install.sh` ... which clearly installed what I needed, and took advantage of the CUDA and GPUs in the box
-- then exited and re-logged in to get everything going
+- then exited the instance and re-logged in to get everything going
 - now the `th` gets me:
 
 ```
@@ -28,9 +30,9 @@ th>
 
 Yay!
 
-NOTE: I checked the luarocks packages using `luarocks list` and all of the packages listed in the torch-rnn repo were already installed. Sweet. Same for `python2.7-dev` and `libhdf5-dev`.
+NOTE: I checked the luarocks packages using `luarocks list` and all of the packages listed in the [torch-rnn repo](https://github.com/jcjohnson/torch-rnn) were already installed. Sweet. Same for `python2.7-dev` and `libhdf5-dev`.
 
-The only thing missing was the `torch-hdf5`, which the instructions say we need form GitHub:
+The only thing missing was the `torch-hdf5`, which the [instructions](https://github.com/jcjohnson/torch-rnn) say we need form GitHub:
 
 ```
 # We need to install torch-hdf5 from GitHub
@@ -45,10 +47,14 @@ That worked.
 
 - made a new ssh key on the EC2 using this page: https://help.github.com/articles/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent/
 - added it as an authorized key in my settings in GitHub
-
+- on the web, forked the torch-rnn repo to my own account
+- then cloned [my fork](https://github.com/jkeefe/torch-rnn) onto the EC2 instance 
+- created a new branch called dognames using `git branch dognames` and `git checkout dognames`
+- worked in this branch, being sure to push with `-u` to push the branch upstream: `git push -u origin dognames`
 
 ## Getting conda environment working
 
+- In retospect, this may not have been necessary. But did it anyway to maintain good practice.
 - couldn't use `conda` until added this to `.bashrc`
     `export PATH="/home/ubuntu/src/anaconda2/bin:$PATH"`
 - but `conda create --name dogs` ran into permissions problems
@@ -60,9 +66,9 @@ That worked.
 
 ## Prepped the data
 
-- Downloaded a 2013 NYC dog dataset from [this WNYC fusion table](https://fusiontables.google.com/data?docid=1pKcxc8kzJbBVzLu_kgzoAMzqYhZyUhtScXjB0BQ#rows:id=1) which has 81,542 rows and 13,803 unique dog names. I didn't do anything to pull out just the unique names.
+- Downloaded the 2013 NYC dog dataset from [this WNYC fusion table](https://fusiontables.google.com/data?docid=1pKcxc8kzJbBVzLu_kgzoAMzqYhZyUhtScXjB0BQ#rows:id=1) which has 81,542 rows and 13,803 unique dog names. I didn't do anything to pull out just the unique names yet.
 - used LibreOffice to take just the first column (the dog names) and put it into dogs.txt
-- Now starting to follow [steps](https://github.com/jkeefe/torch-rnn#usage) outlined in the README.
+- Now starting to follow [steps](https://github.com/jkeefe/torch-rnn#usage) outlined in the torch-rnn README.
 
 ```
 python scripts/preprocess.py \
@@ -88,7 +94,29 @@ Following along in the example instructions:
 
 `th train.lua -input_h5 data/dogs.h5 -input_json data/dogs.json`
 
+This took a bit of time, but that was fine. 
+
 ## Taking a sample!
 
 `th sample.lua -checkpoint cv/checkpoint_8000.t7 -length 3000 > data/dogs_sample.txt`
+
+Woot! Got cool new dog names! Though lots are clearly names that are in the database. 
+
+## Filtering out existing names
+
+To get a list of names made by the computer but not in the original data, I decided to whip up a quick python script in jupyter notebook.
+
+```
+conda install jupyter
+jupyter notebook
+```
+
+I copy-pasted the URL I got into a browser to do the work.
+
+The notebook is [here](https://github.com/jkeefe/torch-rnn/blob/dognames/compare_sample_to_original.ipynb).
+
+ 
+
+
+So put together a little jupyter notebook
 
