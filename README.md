@@ -2,175 +2,46 @@
 
 -----
 
-torch-rnn provides high-performance, reusable RNN and LSTM modules for torch7, and uses these modules for character-level
-language modeling similar to [char-rnn](https://github.com/karpathy/char-rnn).
+This is a fork from the torch-rnn repo, which you can find [here](https://github.com/jcjohnson/torch-rnn). I used this to train a neural network that generated Javascript framework names:
 
-You can find documentation for the RNN and LSTM modules [here](doc/modules.md); they have no dependencies other than `torch`
-and `nn`, so they should be easy to integrate into existing projects.
+<img src='imgs/frameworks.png' width="800px">
 
-Compared to char-rnn, torch-rnn is up to **1.9x faster** and uses up to **7x less memory**. For more details see 
-the [Benchmark](#benchmarks) section below.
+## Data
 
+If you're looking for just the generated names, you can find that in the `data` folder. `frameworks.txt` contains all the frameworks I used to train the neural network, `frameworks_sample.txt` contains the generated framework names, and `frameworks_selected.txt` has some of the generated names that I liked.
 
-# Installation
+## Setup
 
-## Docker Images
-Cristian Baldi has prepared Docker images for both CPU-only mode and GPU mode;
-you can [find them here](https://github.com/crisbal/docker-torch-rnn).
+For most of the setup, I followed the readme in the [original repo](https://github.com/jcjohnson/torch-rnn), as well as the readme from [jkeefe's fork](https://github.com/jkeefe/torch-rnn/blob/dognames/NOTES_JK.md). There a couple of things that I did specifically for my branch:
 
-## System setup
-You'll need to install the header files for Python 2.7 and the HDF5 library. On Ubuntu you should be able to install
-like this:
+First, gathering the initial training data. Finding a listing of all Javascript libraries was surprisingly hard - I couldn't find any sort of directory on the npm website, so using [Javascripting](https://www.javascripting.com/) was my next-best choice. There wasn't any easy sort of table to copy-paste, so I ended up writing a BeautifulSoup scraper, which you can find in `scripts/scraper.py`. I ended up gathering 17*73=1241 framework names, which isn't a whole lot in the context of machine learning, but it was good enough for me. ¯\_(ツ)_/¯
 
-```bash
-sudo apt-get -y install python2.7-dev
-sudo apt-get install libhdf5-dev
+After getting the data, I had to install all the torch stuff. I initially tried to install it on my computer, but that was kinda awful, so I set up an Amazon EC2 instance, as described in jkeefe's fork. EC2 sounded kinda intimidating - I've never used it before - but it was actually really straightforward to set up! Just follow the instructions on the Amazon website.
+
+Once you get torch set up, run this to preprocess the data:
+
 ```
-
-## Python setup
-The preprocessing script is written in Python 2.7; its dependencies are in the file `requirements.txt`.
-You can install these dependencies in a virtual environment like this:
-
-```bash
-virtualenv .env                  # Create the virtual environment
-source .env/bin/activate         # Activate the virtual environment
-pip install -r requirements.txt  # Install Python dependencies
-# Work for a while ...
-deactivate                       # Exit the virtual environment
-```
-
-## Lua setup
-The main modeling code is written in Lua using [torch](http://torch.ch); you can find installation instructions
-[here](http://torch.ch/docs/getting-started.html#_). You'll need the following Lua packages:
-
-- [torch/torch7](https://github.com/torch/torch7)
-- [torch/nn](https://github.com/torch/nn)
-- [torch/optim](https://github.com/torch/optim)
-- [lua-cjson](https://luarocks.org/modules/luarocks/lua-cjson)
-- [torch-hdf5](https://github.com/deepmind/torch-hdf5)
-
-After installing torch, you can install / update these packages by running the following:
-
-```bash
-# Install most things using luarocks
-luarocks install torch
-luarocks install nn
-luarocks install optim
-luarocks install lua-cjson
-
-# We need to install torch-hdf5 from GitHub
-git clone https://github.com/deepmind/torch-hdf5
-cd torch-hdf5
-luarocks make hdf5-0-0.rockspec
-```
-
-### CUDA support (Optional)
-To enable GPU acceleration with CUDA, you'll need to install CUDA 6.5 or higher and the following Lua packages:
-- [torch/cutorch](https://github.com/torch/cutorch)
-- [torch/cunn](https://github.com/torch/cunn)
-
-You can install / update them by running:
-
-```bash
-luarocks install cutorch
-luarocks install cunn
-```
-
-## OpenCL support (Optional)
-To enable GPU acceleration with OpenCL, you'll need to install the following Lua packages:
-- [cltorch](https://github.com/hughperkins/cltorch)
-- [clnn](https://github.com/hughperkins/clnn)
-
-You can install / update them by running:
-
-```bash
-luarocks install cltorch
-luarocks install clnn
-```
-
-## OSX Installation
-Jeff Thompson has written a very detailed installation guide for OSX that you [can find here](http://www.jeffreythompson.org/blog/2016/03/25/torch-rnn-mac-install/).
-
-# Usage
-To train a model and use it to generate new text, you'll need to follow three simple steps:
-
-## Step 1: Preprocess the data
-You can use any text file for training models. Before training, you'll need to preprocess the data using the script
-`scripts/preprocess.py`; this will generate an HDF5 file and JSON file containing a preprocessed version of the data.
-
-If you have training data stored in `my_data.txt`, you can run the script like this:
-
-```bash
 python scripts/preprocess.py \
-  --input_txt my_data.txt \
-  --output_h5 my_data.h5 \
-  --output_json my_data.json
+  --input_txt data/frameworks.txt \
+  --output_h5 data/frameworks.h5 \
+  --output_json data/frameworks.json
 ```
 
-This will produce files `my_data.h5` and `my_data.json` that will be passed to the training script.
+Then, run this to train the data:
 
-There are a few more flags you can use to configure preprocessing; [read about them here](doc/flags.md#preprocessing)
+`th train.lua -input_h5 data/frameworks.h5 -input_json data/frameworks.json -gpu -1 -batch_size 15`
 
-## Step 2: Train the model
-After preprocessing the data, you'll need to train the model using the `train.lua` script. This will be the slowest step.
-You can run the training script like this:
+DON'T BE A DUMMY LIKE ME AND FORGET THE `-gpu -1` TAG AT THE END!!! THIS WASN'T EXPLICITLY STATED IN THE READMES, AND I SPENT TWO HOURS TRYING TO FIGURE OUT WHY CUDA OR WHATEVER WAS BREAKING MY COMPUTER. DON'T DO THAT!!! ):
 
-```bash
-th train.lua -input_h5 my_data.h5 -input_json my_data.json
-```
+The `-batch_size 15` part also tripped me up a bit. Because my training size was really small, the default of 50 messed me up when generating new samples. You don't necessarily have to use 15 - anything below a batch size of 20 should work.
 
-This will read the data stored in `my_data.h5` and `my_data.json`, run for a while, and save checkpoints to files with 
-names like `cv/checkpoint_1000.t7`.
+<img src='imgs/sad.jpg' width="800px">
 
-You can change the RNN model type, hidden state size, and number of RNN layers like this:
+After you survive the above steps, you can go ahead to the fun part: generating names! Go ahead and look in your `cv` folder. The checkpoints in there are what you'll need to generating names. For example, if there's a checkpoint called `checkpoint_1000.t7`, you can run:
 
-```bash
-th train.lua -input_h5 my_data.h5 -input_json my_data.json -model_type rnn -num_layers 3 -rnn_size 256
-```
+`th sample.lua -checkpoint cv/checkpoint_1000.t7 -length 2000 > data/frameworks_sample.txt`
 
-By default this will run in GPU mode using CUDA; to run in CPU-only mode, add the flag `-gpu -1`.
+which will sample 2000 characters and put the new framework names in `data/frameworks_sample.txt`.
 
-To run with OpenCL, add the flag `-gpu_backend opencl`.
+And that's it! Sample as many times as you want, and have fun with it!
 
-There are many more flags you can use to configure training; [read about them here](doc/flags.md#training).
-
-## Step 3: Sample from the model
-After training a model, you can generate new text by sampling from it using the script `sample.lua`. Run it like this:
-
-```bash
-th sample.lua -checkpoint cv/checkpoint_10000.t7 -length 2000
-```
-
-This will load the trained checkpoint `cv/checkpoint_10000.t7` from the previous step, sample 2000 characters from it,
-and print the results to the console.
-
-By default the sampling script will run in GPU mode using CUDA; to run in CPU-only mode add the flag `-gpu -1` and
-to run in OpenCL mode add the flag `-gpu_backend opencl`.
-
-There are more flags you can use to configure sampling; [read about them here](doc/flags.md#sampling).
-
-# Benchmarks
-To benchmark `torch-rnn` against `char-rnn`, we use each to train LSTM language models for the tiny-shakespeare dataset
-with 1, 2 or 3 layers and with an RNN size of 64, 128, 256, or 512. For each we use a minibatch size of 50, a sequence 
-length of 50, and no dropout. For each model size and for both implementations, we record the forward/backward times and 
-GPU memory usage over the first 100 training iterations, and use these measurements to compute the mean time and memory 
-usage.
-
-All benchmarks were run on a machine with an Intel i7-4790k CPU, 32 GB main memory, and a Titan X GPU.
-
-Below we show the forward/backward times for both implementations, as well as the mean speedup of `torch-rnn` over 
-`char-rnn`. We see that `torch-rnn` is faster than `char-rnn` at all model sizes, with smaller models giving a larger
-speedup; for a single-layer LSTM with 128 hidden units, we achieve a **1.9x speedup**; for larger models we achieve about
-a 1.4x speedup.
-
-<img src='imgs/lstm_time_benchmark.png' width="800px">
-
-Below we show the GPU memory usage for both implementations, as well as the mean memory saving of `torch-rnn` over
-`char-rnn`. Again `torch-rnn` outperforms `char-rnn` at all model sizes, but here the savings become more significant for
-larger models: for models with 512 hidden units, we use **7x less memory** than `char-rnn`.
-
-<img src='imgs/lstm_memory_benchmark.png' width="800px">
-
-
-# TODOs
-- Get rid of Python / JSON / HDF5 dependencies?
